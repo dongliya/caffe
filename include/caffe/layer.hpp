@@ -36,15 +36,23 @@ class Layer {
    * You should not implement your own constructor. Any set up code should go
    * to SetUp(), where the dimensions of the bottom blobs are provided to the
    * layer.
+   * 
    */
+  // explicit 禁止参数param隐式转换, 
   explicit Layer(const LayerParameter& param)
     : layer_param_(param) {
       // Set phase and copy blobs (if there are any).
+      // 设置状态TRAIN或者TEST
       phase_ = param.phase();
+      // 拷贝blobs
       if (layer_param_.blobs_size() > 0) {
+		// 设置vector大小，每次拷贝一个blobs
         blobs_.resize(layer_param_.blobs_size());
+
         for (int i = 0; i < layer_param_.blobs_size(); ++i) {
+		  // 原指针引用计数减1, 同时管理另一个指针
           blobs_[i].reset(new Blob<Dtype>());
+          // blobs 数据拷贝
           blobs_[i]->FromProto(layer_param_.blobs(i));
         }
       }
@@ -123,6 +131,7 @@ class Layer {
    *
    * Your layer should implement Forward_cpu and (optionally) Forward_gpu.
    */
+  // 输入bottom, 计算top
   inline Dtype Forward(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
@@ -147,6 +156,7 @@ class Layer {
    *
    * Your layer should implement Backward_cpu and (optionally) Backward_gpu.
    */
+  // 输入计算top和propagate_down, bottom 
   inline void Backward(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom);
