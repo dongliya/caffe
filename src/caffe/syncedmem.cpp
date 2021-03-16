@@ -36,21 +36,27 @@ SyncedMemory::~SyncedMemory() {
 #endif  // CPU_ONLY
 }
 
+//数据同步到cpu
 inline void SyncedMemory::to_cpu() {
   check_device();
   switch (head_) {
+  //数据未分配
   case UNINITIALIZED:
+    //申请cpu内存空间
     CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
     caffe_memset(size_, 0, cpu_ptr_);
+    //状态更新
     head_ = HEAD_AT_CPU;
     own_cpu_data_ = true;
     break;
+  //数据在GPU
   case HEAD_AT_GPU:
 #ifndef CPU_ONLY
     if (cpu_ptr_ == NULL) {
       CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
       own_cpu_data_ = true;
     }
+    //从gpu_ptr_拷贝到cpu_ptr_
     caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
     head_ = SYNCED;
 #else
@@ -63,21 +69,25 @@ inline void SyncedMemory::to_cpu() {
   }
 }
 
+//数据同步到gpu
 inline void SyncedMemory::to_gpu() {
   check_device();
 #ifndef CPU_ONLY
   switch (head_) {
   case UNINITIALIZED:
+    //申请gpu显存空间
     CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
     caffe_gpu_memset(size_, 0, gpu_ptr_);
     head_ = HEAD_AT_GPU;
     own_gpu_data_ = true;
     break;
+  //数据在CPU
   case HEAD_AT_CPU:
     if (gpu_ptr_ == NULL) {
       CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
       own_gpu_data_ = true;
     }
+    //从cpu_ptr_拷贝到gpu_ptr_
     caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
     head_ = SYNCED;
     break;
@@ -90,12 +100,14 @@ inline void SyncedMemory::to_gpu() {
 #endif
 }
 
+//获取内存指针
 const void* SyncedMemory::cpu_data() {
   check_device();
   to_cpu();
   return (const void*)cpu_ptr_;
 }
 
+//设置cpu数据共享
 void SyncedMemory::set_cpu_data(void* data) {
   check_device();
   CHECK(data);
@@ -107,6 +119,7 @@ void SyncedMemory::set_cpu_data(void* data) {
   own_cpu_data_ = false;
 }
 
+//获取显存指针
 const void* SyncedMemory::gpu_data() {
   check_device();
 #ifndef CPU_ONLY
@@ -118,6 +131,7 @@ const void* SyncedMemory::gpu_data() {
 #endif
 }
 
+//显设置gpu数据共享
 void SyncedMemory::set_gpu_data(void* data) {
   check_device();
 #ifndef CPU_ONLY
@@ -133,6 +147,7 @@ void SyncedMemory::set_gpu_data(void* data) {
 #endif
 }
 
+//获取可更改内存指针
 void* SyncedMemory::mutable_cpu_data() {
   check_device();
   to_cpu();
@@ -140,6 +155,7 @@ void* SyncedMemory::mutable_cpu_data() {
   return cpu_ptr_;
 }
 
+//获取可更改显存指针
 void* SyncedMemory::mutable_gpu_data() {
   check_device();
 #ifndef CPU_ONLY
@@ -153,6 +169,7 @@ void* SyncedMemory::mutable_gpu_data() {
 }
 
 #ifndef CPU_ONLY
+//异步同步数据流
 void SyncedMemory::async_gpu_push(const cudaStream_t& stream) {
   check_device();
   CHECK(head_ == HEAD_AT_CPU);

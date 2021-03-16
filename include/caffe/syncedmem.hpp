@@ -16,6 +16,10 @@ namespace caffe {
 // The improvement in performance seems negligible in the single GPU case,
 // but might be more significant for parallel training. Most importantly,
 // it improved stability for large models on many GPUs.
+// @brief 申请内存空间
+// @param ptr:      内存指针
+//        size:     内存大小
+//        use_cuda: 是否使用cuda标识位
 inline void CaffeMallocHost(void** ptr, size_t size, bool* use_cuda) {
 #ifndef CPU_ONLY
   if (Caffe::mode() == Caffe::GPU) {
@@ -32,7 +36,7 @@ inline void CaffeMallocHost(void** ptr, size_t size, bool* use_cuda) {
   *use_cuda = false;
   CHECK(*ptr) << "host allocation of size " << size << " failed";
 }
-
+// 释放内存空间
 inline void CaffeFreeHost(void* ptr, bool use_cuda) {
 #ifndef CPU_ONLY
   if (use_cuda) {
@@ -78,9 +82,13 @@ class SyncedMemory {
 
   void to_cpu();
   void to_gpu();
+  //内存指针
   void* cpu_ptr_;
+  //显存指针
   void* gpu_ptr_;
+  //数据大小
   size_t size_;
+  //当前数据状态
   SyncedHead head_;
   bool own_cpu_data_;
   bool cpu_malloc_use_cuda_;
