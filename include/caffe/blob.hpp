@@ -51,6 +51,7 @@ class Blob {
   void Reshape(const vector<int>& shape);
   void Reshape(const BlobShape& shape);
   void ReshapeLike(const Blob& other);
+  //获取Blob的shape_和count_组成的字符串
   inline string shape_string() const {
     ostringstream stream;
     for (int i = 0; i < shape_.size(); ++i) {
@@ -59,6 +60,7 @@ class Blob {
     stream << "(" << count_ << ")";
     return stream.str();
   }
+  //获取Blob的维度数组
   inline const vector<int>& shape() const { return shape_; }
   /**
    * @brief Returns the dimension of the index-th axis (or the negative index-th
@@ -68,10 +70,13 @@ class Blob {
    *        "canonicalized" using CanonicalAxisIndex.
    *        Dies on out of range index.
    */
+  //获取Blob指定下标的维度值
   inline int shape(int index) const {
     return shape_[CanonicalAxisIndex(index)];
   }
+  //获取Blob的维数
   inline int num_axes() const { return shape_.size(); }
+  //获取Blob的元素个数
   inline int count() const { return count_; }
 
   /**
@@ -82,6 +87,7 @@ class Blob {
    *
    * @param end_axis The first axis to exclude from the slice.
    */
+  //计算指定下标范围内的Blob元素数
   inline int count(int start_axis, int end_axis) const {
     CHECK_LE(start_axis, end_axis);
     CHECK_GE(start_axis, 0);
@@ -100,6 +106,7 @@ class Blob {
    *
    * @param start_axis The first axis to include in the slice.
    */
+  //计算start_axis开始的Blob元素数
   inline int count(int start_axis) const {
     return count(start_axis, num_axes());
   }
@@ -115,6 +122,7 @@ class Blob {
    *        the second to last if index == -2, etc.
    *        Dies on out of range index.
    */
+  // index下标转换，兼容负值
   inline int CanonicalAxisIndex(int axis_index) const {
     CHECK_GE(axis_index, -num_axes())
         << "axis " << axis_index << " out of range for " << num_axes()
@@ -136,6 +144,8 @@ class Blob {
   inline int height() const { return LegacyShape(2); }
   /// @brief Deprecated legacy shape accessor width: use shape(3) instead.
   inline int width() const { return LegacyShape(3); }
+  
+  // 获取某一维度值
   inline int LegacyShape(int index) const {
     CHECK_LE(num_axes(), 4)
         << "Cannot use legacy accessors on Blobs with > 4 axes.";
@@ -149,7 +159,7 @@ class Blob {
     }
     return shape(index);
   }
-
+  // 计算偏移
   inline int offset(const int n, const int c = 0, const int h = 0,
       const int w = 0) const {
     CHECK_GE(n, 0);
@@ -162,7 +172,7 @@ class Blob {
     CHECK_LE(w, width());
     return ((n * channels() + c) * height() + h) * width() + w;
   }
-
+  // 计算偏移
   inline int offset(const vector<int>& indices) const {
     CHECK_LE(indices.size(), num_axes());
     int offset = 0;
@@ -188,29 +198,31 @@ class Blob {
   void CopyFrom(const Blob<Dtype>& source, bool copy_diff = false,
       bool reshape = false);
 
+  //根据指定的偏移量获得前向传播数据data_的一个元素的值
   inline Dtype data_at(const int n, const int c, const int h,
       const int w) const {
     return cpu_data()[offset(n, c, h, w)];
   }
-
+  //根据指定的偏移量获得反向传播梯度diff_的一个元素的值
   inline Dtype diff_at(const int n, const int c, const int h,
       const int w) const {
     return cpu_diff()[offset(n, c, h, w)];
   }
-
+  //根据指定的index偏移量获得前向传播数据data_的一个元素的值
   inline Dtype data_at(const vector<int>& index) const {
     return cpu_data()[offset(index)];
   }
-
+  //根据指定的index偏移量获得反向传播梯度diff_的一个元素的值
   inline Dtype diff_at(const vector<int>& index) const {
     return cpu_diff()[offset(index)];
   }
-
+  
+  // 获取前向传播数据data_的指针
   inline const shared_ptr<SyncedMemory>& data() const {
     CHECK(data_);
     return data_;
   }
-
+  // 获取反向传播数据diff_的指针
   inline const shared_ptr<SyncedMemory>& diff() const {
     CHECK(diff_);
     return diff_;
@@ -267,12 +279,12 @@ class Blob {
   bool ShapeEquals(const BlobProto& other);
 
  protected:
-  shared_ptr<SyncedMemory> data_;
-  shared_ptr<SyncedMemory> diff_;
-  shared_ptr<SyncedMemory> shape_data_;
-  vector<int> shape_;
-  int count_;
-  int capacity_;
+  shared_ptr<SyncedMemory> data_;         //前向传播数据
+  shared_ptr<SyncedMemory> diff_;         //反向传播梯度
+  shared_ptr<SyncedMemory> shape_data_;   //参数维度
+  vector<int> shape_;                     //参数维度
+  int count_;                             //Blob中元素的个数(shape乘积)
+  int capacity_;                          //当前元素个数
 
   DISABLE_COPY_AND_ASSIGN(Blob);
 };  // class Blob

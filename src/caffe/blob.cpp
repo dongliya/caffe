@@ -8,6 +8,7 @@
 
 namespace caffe {
 
+//设置维度
 template <typename Dtype>
 void Blob<Dtype>::Reshape(const int num, const int channels, const int height,
     const int width) {
@@ -19,6 +20,7 @@ void Blob<Dtype>::Reshape(const int num, const int channels, const int height,
   Reshape(shape);
 }
 
+//通过vector<int>设置Blob参数
 template <typename Dtype>
 void Blob<Dtype>::Reshape(const vector<int>& shape) {
   CHECK_LE(shape.size(), kMaxBlobAxes);
@@ -44,9 +46,11 @@ void Blob<Dtype>::Reshape(const vector<int>& shape) {
   }
 }
 
+//BlobShape是定义在caffe.proto中的一个mesasge, 其字段有dim
 template <typename Dtype>
 void Blob<Dtype>::Reshape(const BlobShape& shape) {
   CHECK_LE(shape.dim_size(), kMaxBlobAxes);
+  // BlobShape类型 转化为 vector<int>
   vector<int> shape_vec(shape.dim_size());
   for (int i = 0; i < shape.dim_size(); ++i) {
     shape_vec[i] = shape.dim(i);
@@ -152,12 +156,14 @@ Dtype* Blob<Dtype>::mutable_gpu_diff() {
   return static_cast<Dtype*>(diff_->mutable_gpu_data());
 }
 
+//共享参数other里的data
 template <typename Dtype>
 void Blob<Dtype>::ShareData(const Blob& other) {
   CHECK_EQ(count_, other.count());
   data_ = other.data();
 }
 
+//共享参数other里的diff
 template <typename Dtype>
 void Blob<Dtype>::ShareDiff(const Blob& other) {
   CHECK_EQ(count_, other.count());
@@ -170,6 +176,7 @@ void Blob<Dtype>::ShareDiff(const Blob& other) {
 template <> void Blob<unsigned int>::Update() { NOT_IMPLEMENTED; }
 template <> void Blob<int>::Update() { NOT_IMPLEMENTED; }
 
+//更新data_ data_ = -1 * diff_ + data_
 template <typename Dtype>
 void Blob<Dtype>::Update() {
   // We will perform update based on where the data is located.
@@ -206,6 +213,7 @@ template <> int Blob<int>::asum_data() const {
   return 0;
 }
 
+//计算data_的L1范式，元素绝对值之和
 template <typename Dtype>
 Dtype Blob<Dtype>::asum_data() const {
   if (!data_) { return 0; }
@@ -241,6 +249,7 @@ template <> int Blob<int>::asum_diff() const {
   return 0;
 }
 
+//计算diff_的L1范式，元素绝对值之和
 template <typename Dtype>
 Dtype Blob<Dtype>::asum_diff() const {
   if (!diff_) { return 0; }
@@ -276,6 +285,7 @@ template <> int Blob<int>::sumsq_data() const {
   return 0;
 }
 
+//计算data_的L2范式，元素平方和
 template <typename Dtype>
 Dtype Blob<Dtype>::sumsq_data() const {
   Dtype sumsq;
@@ -313,6 +323,7 @@ template <> int Blob<int>::sumsq_diff() const {
   return 0;
 }
 
+//计算diff_的L2范式，元素平方和
 template <typename Dtype>
 Dtype Blob<Dtype>::sumsq_diff() const {
   Dtype sumsq;
@@ -348,6 +359,7 @@ template <> void Blob<int>::scale_data(int scale_factor) {
   NOT_IMPLEMENTED;
 }
 
+//data_乘以一个常数因子
 template <typename Dtype>
 void Blob<Dtype>::scale_data(Dtype scale_factor) {
   Dtype* data;
@@ -381,6 +393,7 @@ template <> void Blob<int>::scale_diff(int scale_factor) {
   NOT_IMPLEMENTED;
 }
 
+//diff_乘以一个常数因子
 template <typename Dtype>
 void Blob<Dtype>::scale_diff(Dtype scale_factor) {
   Dtype* diff;
@@ -429,6 +442,7 @@ bool Blob<Dtype>::ShapeEquals(const BlobProto& other) {
   return shape_ == other_shape;
 }
 
+//从外部Blob拷贝数据
 template <typename Dtype>
 void Blob<Dtype>::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
   if (source.count() != count_ || source.shape() != shape_) {
@@ -462,6 +476,8 @@ void Blob<Dtype>::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
   }
 }
 
+
+// 将BlobProto的shape/data/diff分别copy给当前blob的shape_/data_/diff_完成数据解析(反序列化)
 template <typename Dtype>
 void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape) {
   if (reshape) {
@@ -513,6 +529,7 @@ void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape) {
   }
 }
 
+// 将Blob的shape_/data_/diff_(如果write_diff为true)分别copy给BlobProto的shape/data/diff完成序列化
 template <>
 void Blob<double>::ToProto(BlobProto* proto, bool write_diff) const {
   proto->clear_shape();
