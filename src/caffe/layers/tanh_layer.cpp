@@ -12,7 +12,7 @@
  *            y = tanh(x) = (exp(x)-exp(-x))/(exp(x)+exp(-x)) = 2sigmoid(2x)-1
  * 
  *  梯度计算:
- *            diff_y = diff_x * 4*exp(2*x)/pow((exp(2*x)+1),2)
+ *            diff_y = diff_x * (1-tahn(x)*tahn(x))
  * 
  * 
  *  总结:
