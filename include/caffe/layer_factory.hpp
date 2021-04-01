@@ -156,6 +156,7 @@ class LayerRegisterer {
 };
 
 // 构造一个REGISTER_LAYER_CREATOR，实现float和double类型的构造函数
+// "##"是一个连接符号，用于把参数连接在一起，a##b 等同于 ab
 #define REGISTER_LAYER_CREATOR(type, creator)                                  \
   static LayerRegisterer<float> g_creator_f_##type(#type, creator<float>);     \
   static LayerRegisterer<double> g_creator_d_##type(#type, creator<double>)    \

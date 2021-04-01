@@ -37,6 +37,8 @@
 namespace caffe {
 
 // Get convolution layer according to engine.
+// 根据参数，返回不同计算模式的对象
+
 template <typename Dtype>
 shared_ptr<Layer<Dtype> > GetConvolutionLayer(
     const LayerParameter& param) {
@@ -74,6 +76,7 @@ shared_ptr<Layer<Dtype> > GetConvolutionLayer(
   }
 }
 
+// 注册卷积层
 REGISTER_LAYER_CREATOR(Convolution, GetConvolutionLayer);
 
 // Get deconvolution layer according to engine.
