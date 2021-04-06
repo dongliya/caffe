@@ -19,6 +19,7 @@ BlockingQueue<T>::BlockingQueue()
     : sync_(new sync()) {
 }
 
+//数据压入队列
 template<typename T>
 void BlockingQueue<T>::push(const T& t) {
   boost::mutex::scoped_lock lock(sync_->mutex_);
@@ -27,6 +28,7 @@ void BlockingQueue<T>::push(const T& t) {
   sync_->condition_.notify_one();
 }
 
+//弹出队尾数据，数据为返回false
 template<typename T>
 bool BlockingQueue<T>::try_pop(T* t) {
   boost::mutex::scoped_lock lock(sync_->mutex_);
@@ -40,6 +42,7 @@ bool BlockingQueue<T>::try_pop(T* t) {
   return true;
 }
 
+//弹出队尾数据
 template<typename T>
 T BlockingQueue<T>::pop(const string& log_on_wait) {
   boost::mutex::scoped_lock lock(sync_->mutex_);
@@ -48,6 +51,7 @@ T BlockingQueue<T>::pop(const string& log_on_wait) {
     if (!log_on_wait.empty()) {
       LOG_EVERY_N(INFO, 1000)<< log_on_wait;
     }
+    //队列数据为空一直等待
     sync_->condition_.wait(lock);
   }
 
@@ -56,6 +60,7 @@ T BlockingQueue<T>::pop(const string& log_on_wait) {
   return t;
 }
 
+//尝试获取队首数据
 template<typename T>
 bool BlockingQueue<T>::try_peek(T* t) {
   boost::mutex::scoped_lock lock(sync_->mutex_);
@@ -68,6 +73,7 @@ bool BlockingQueue<T>::try_peek(T* t) {
   return true;
 }
 
+//获取队首数据，数据为空一直等待
 template<typename T>
 T BlockingQueue<T>::peek() {
   boost::mutex::scoped_lock lock(sync_->mutex_);
@@ -79,6 +85,7 @@ T BlockingQueue<T>::peek() {
   return queue_.front();
 }
 
+//获取队列元素个数
 template<typename T>
 size_t BlockingQueue<T>::size() const {
   boost::mutex::scoped_lock lock(sync_->mutex_);
