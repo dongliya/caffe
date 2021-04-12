@@ -14,6 +14,7 @@ bool InternalThread::is_started() const {
   return thread_ && thread_->joinable();
 }
 
+//检测当前线程是否被要求中断
 bool InternalThread::must_stop() {
   return thread_ && thread_->interruption_requested();
 }
@@ -32,6 +33,7 @@ void InternalThread::StartInternalThread() {
   bool multiprocess = Caffe::multiprocess();
 
   try {
+	//释放当前对象，重新赋值新对象
     thread_.reset(new boost::thread(&InternalThread::entry, this, device, mode,
           rand_seed, solver_count, solver_rank, multiprocess));
   } catch (std::exception& e) {
@@ -55,8 +57,10 @@ void InternalThread::entry(int device, Caffe::Brew mode, int rand_seed,
 
 void InternalThread::StopInternalThread() {
   if (is_started()) {
+	//发送中断请求
     thread_->interrupt();
     try {
+	  //等待线程执行结束
       thread_->join();
     } catch (boost::thread_interrupted&) {
     } catch (std::exception& e) {
