@@ -30,8 +30,10 @@ template <typename Dtype>
 Net<Dtype>::Net(const string& param_file, Phase phase,
     const int level, const vector<string>* stages) {
   NetParameter param;
+  //从文件读取网络参数
   ReadNetParamsFromTextFileOrDie(param_file, &param);
   // Set phase, stages and level
+  //设置当前所处的阶段，训练/测试
   param.mutable_state()->set_phase(phase);
   if (stages != NULL) {
     for (int i = 0; i < stages->size(); i++) {
@@ -49,12 +51,14 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   // Filter layers based on their include/exclude rules and
   // the current NetState.
   NetParameter filtered_param;
+  // 将in_param中不符合规则的层去掉
   FilterNet(in_param, &filtered_param);
   LOG_IF(INFO, Caffe::root_solver())
       << "Initializing net from parameters: " << std::endl
       << filtered_param.DebugString();
   // Create a copy of filtered_param with splits added where necessary.
   NetParameter param;
+  // 将一个输出blob对应多个输入的情况，加入分裂层
   InsertSplits(filtered_param, &param);
   // Basically, build all the layers and set up their connections.
   name_ = param.name();
