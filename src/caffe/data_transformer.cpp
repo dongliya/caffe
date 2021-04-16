@@ -17,9 +17,11 @@ DataTransformer<Dtype>::DataTransformer(const TransformationParameter& param,
     Phase phase)
     : param_(param), phase_(phase) {
   // check if we want to use mean_file
+  // 判断是否有均值文件
   if (param_.has_mean_file()) {
     CHECK_EQ(param_.mean_value_size(), 0) <<
       "Cannot specify mean_file and mean_value at the same time";
+    //读取均值文件路径  
     const string& mean_file = param.mean_file();
     if (Caffe::root_solver()) {
       LOG(INFO) << "Loading mean file from: " << mean_file;
@@ -29,6 +31,7 @@ DataTransformer<Dtype>::DataTransformer(const TransformationParameter& param,
     data_mean_.FromProto(blob_proto);
   }
   // check if we want to use mean_value
+  // 检查是否有通道均值
   if (param_.mean_value_size() > 0) {
     CHECK(param_.has_mean_file() == false) <<
       "Cannot specify mean_file and mean_value at the same time";
@@ -42,15 +45,23 @@ template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const Datum& datum,
                                        Dtype* transformed_data) {
   const string& data = datum.data();
+  // 数据的通道
   const int datum_channels = datum.channels();
+  // 数据的行数
   const int datum_height = datum.height();
+  // 数据的列数
   const int datum_width = datum.width();
-
+  // 裁剪尺寸
   const int crop_size = param_.crop_size();
+  // 缩放比例
   const Dtype scale = param_.scale();
+  // 是否镜像处理
   const bool do_mirror = param_.mirror() && Rand(2);
+  // 是否有均值文件
   const bool has_mean_file = param_.has_mean_file();
+  // 数据是否是uint8
   const bool has_uint8 = data.size() > 0;
+  // 是否有每个channel的均值
   const bool has_mean_values = mean_values_.size() > 0;
 
   CHECK_GT(datum_channels, 0);
@@ -59,12 +70,16 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
 
   Dtype* mean = NULL;
   if (has_mean_file) {
+	// 检查均值与data size是否一致，并把均值读取到mean中  
     CHECK_EQ(datum_channels, data_mean_.channels());
     CHECK_EQ(datum_height, data_mean_.height());
     CHECK_EQ(datum_width, data_mean_.width());
     mean = data_mean_.mutable_cpu_data();
   }
+  
   if (has_mean_values) {
+	
+	// 通道均值个数是1,或者与通道个数相同
     CHECK(mean_values_.size() == 1 || mean_values_.size() == datum_channels) <<
      "Specify either 1 mean_value or as many as channels: " << datum_channels;
     if (datum_channels > 1 && mean_values_.size() == 1) {
@@ -84,10 +99,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     height = crop_size;
     width = crop_size;
     // We only do random crop when we do training.
+    // 训练的时候随机生成坐标偏移，测试时取图像中心
     if (phase_ == TRAIN) {
       h_off = Rand(datum_height - crop_size + 1);
       w_off = Rand(datum_width - crop_size + 1);
-    } else {
+    } else {	
       h_off = (datum_height - crop_size) / 2;
       w_off = (datum_width - crop_size) / 2;
     }
@@ -98,23 +114,30 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   for (int c = 0; c < datum_channels; ++c) {
     for (int h = 0; h < height; ++h) {
       for (int w = 0; w < width; ++w) {
+		// 获取源数据索引
         data_index = (c * datum_height + h_off + h) * datum_width + w_off + w;
         if (do_mirror) {
+		  // 目标数据镜像索引	
           top_index = (c * height + h) * width + (width - 1 - w);
         } else {
+		  // 目标数据索引	
           top_index = (c * height + h) * width + w;
         }
+        //读取源数据
         if (has_uint8) {
+		  // uint_8格式转换
           datum_element =
             static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
         } else {
           datum_element = datum.float_data(data_index);
         }
         if (has_mean_file) {
+		  // 像素值减去均值，乘以缩放系数	
           transformed_data[top_index] =
             (datum_element - mean[data_index]) * scale;
         } else {
-          if (has_mean_values) {
+		  // 像素值减去通道均值，乘以缩放系数 	
+          if (has_mean_values) { 
             transformed_data[top_index] =
               (datum_element - mean_values_[c]) * scale;
           } else {
@@ -131,11 +154,13 @@ template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const Datum& datum,
                                        Blob<Dtype>* transformed_blob) {
   // If datum is encoded, decode and transform the cv::image.
+  // 检查是否编码
   if (datum.encoded()) {
 #ifdef USE_OPENCV
     CHECK(!(param_.force_color() && param_.force_gray()))
         << "cannot set both force_color and force_gray";
     cv::Mat cv_img;
+    // 图像解码
     if (param_.force_color() || param_.force_gray()) {
     // If force_color then decode in color otherwise decode in gray.
       cv_img = DecodeDatumToCVMat(datum, param_.force_color());
@@ -152,7 +177,9 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       LOG(ERROR) << "force_color and force_gray only for encoded datum";
     }
   }
-
+  
+  //检查图像参数
+  
   const int crop_size = param_.crop_size();
   const int datum_channels = datum.channels();
   const int datum_height = datum.height();
@@ -176,7 +203,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     CHECK_EQ(datum_height, height);
     CHECK_EQ(datum_width, width);
   }
-
+ 
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   Transform(datum, transformed_data);
 }
@@ -278,7 +305,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   int h_off = 0;
   int w_off = 0;
   cv::Mat cv_cropped_img = cv_img;
-  //图片裁剪，
+  //是否需要裁剪
   if (crop_size) {
     CHECK_EQ(crop_size, height);
     CHECK_EQ(crop_size, width);
@@ -292,6 +319,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       h_off = (img_height - crop_size) / 2;
       w_off = (img_width - crop_size) / 2;
     }
+    //图片裁剪
     cv::Rect roi(w_off, h_off, crop_size, crop_size);
     cv_cropped_img = cv_img(roi);
   } else {
@@ -304,22 +332,28 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
+	//指向源图片h行首索引
     const uchar* ptr = cv_cropped_img.ptr<uchar>(h);
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
+		//目标图片索引
         if (do_mirror) {
+		  //镜像操作	
           top_index = (c * height + h) * width + (width - 1 - w);
         } else {
           top_index = (c * height + h) * width + w;
         }
         // int top_index = (c * height + h) * width + w;
+        //读取源数据
         Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
         if (has_mean_file) {
+		  //像素值减去均值，乘以缩放系数	
           int mean_index = (c * img_height + h_off + h) * img_width + w_off + w;
           transformed_data[top_index] =
             (pixel - mean[mean_index]) * scale;
         } else {
+		  //像素值减去通道均值，乘以缩放系数	
           if (has_mean_values) {
             transformed_data[top_index] =
               (pixel - mean_values_[c]) * scale;
@@ -395,6 +429,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
     CHECK_EQ(input_width, data_mean_.width());
     for (int n = 0; n < input_num; ++n) {
       int offset = input_blob->offset(n);
+      // input_blob中每一个矩阵减去均值
       caffe_sub(data_mean_.count(), input_data + offset,
             data_mean_.cpu_data(), input_data + offset);
     }
@@ -404,11 +439,13 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
     CHECK(mean_values_.size() == 1 || mean_values_.size() == input_channels) <<
      "Specify either 1 mean_value or as many as channels: " << input_channels;
     if (mean_values_.size() == 1) {
+	  //每个元素减去mean_values_[0]
       caffe_add_scalar(input_blob->count(), -(mean_values_[0]), input_data);
     } else {
       for (int n = 0; n < input_num; ++n) {
         for (int c = 0; c < input_channels; ++c) {
           int offset = input_blob->offset(n, c);
+          //每个通道的元素减去mean_values_[c]
           caffe_add_scalar(input_height * input_width, -(mean_values_[c]),
             input_data + offset);
         }
@@ -417,7 +454,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   }
 
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
-
+  //从源数据依次复制到目标数据中
   for (int n = 0; n < input_num; ++n) {
     int top_index_n = n * channels;
     int data_index_n = n * channels;
@@ -442,6 +479,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   }
   if (scale != Dtype(1)) {
     DLOG(INFO) << "Scale: " << scale;
+    //每个元素乘以缩放比例
     caffe_scal(size, scale, transformed_data);
   }
 }
@@ -529,12 +567,16 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 
 template <typename Dtype>
 void DataTransformer<Dtype>::InitRand() {
+  //镜像变化和训练阶段的随机裁剪需要初始化随机种子	
   const bool needs_rand = param_.mirror() ||
       (phase_ == TRAIN && param_.crop_size());
   if (needs_rand) {
+	//获取随机数种子  
     const unsigned int rng_seed = caffe_rng_rand();
+    //实例化随机种子生成器
     rng_.reset(new Caffe::RNG(rng_seed));
   } else {
+	//置空  
     rng_.reset();
   }
 }
