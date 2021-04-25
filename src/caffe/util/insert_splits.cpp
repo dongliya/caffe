@@ -13,27 +13,42 @@ void InsertSplits(const NetParameter& param, NetParameter* param_split) {
   // Initialize by copying from the input NetParameter.
   param_split->CopyFrom(param);
   param_split->clear_layer();
+  // blob名<->(层索引,top blob索引)
   map<string, pair<int, int> > blob_name_to_last_top_idx;
+  // (层索引,bottom blob索引)<->(层索引,top blob索引)
   map<pair<int, int>, pair<int, int> > bottom_idx_to_source_top_idx;
+  // (层索引,top blob索引)<->下层bottom个数
   map<pair<int, int>, int> top_idx_to_bottom_count;
+  // (层索引,top blob索引)<->loss_weight(损失权重)
   map<pair<int, int>, float> top_idx_to_loss_weight;
+  // (层索引,top blob索引)<->split id
   map<pair<int, int>, int> top_idx_to_bottom_split_idx;
+  // 层索引<->层名称
   map<int, string> layer_idx_to_layer_name;
+  // 遍历网络
   for (int i = 0; i < param.layer_size(); ++i) {
     const LayerParameter& layer_param = param.layer(i);
     layer_idx_to_layer_name[i] = layer_param.name();
+    // 遍历层输入
     for (int j = 0; j < layer_param.bottom_size(); ++j) {
+	  // 获取输入blob name
       const string& blob_name = layer_param.bottom(j);
+      // 本层的输入就是上层的输出，因此可用blob name做验证
       if (blob_name_to_last_top_idx.find(blob_name) ==
           blob_name_to_last_top_idx.end()) {
         LOG(FATAL) << "Unknown bottom blob '" << blob_name << "' (layer '"
                    << layer_param.name() << "', bottom index " << j << ")";
       }
+      // (当前层索引， bottom blob索引)
       const pair<int, int>& bottom_idx = make_pair(i, j);
+      // 通过blob名字，获取(上一层索引，top blob索引)
       const pair<int, int>& top_idx = blob_name_to_last_top_idx[blob_name];
+      // 当前层输入与上层输出对应关系
       bottom_idx_to_source_top_idx[bottom_idx] = top_idx;
+      // bottom blob计数
       ++top_idx_to_bottom_count[top_idx];
     }
+    // 遍历层输出
     for (int j = 0; j < layer_param.top_size(); ++j) {
       const string& blob_name = layer_param.top(j);
       blob_name_to_last_top_idx[blob_name] = make_pair(i, j);
@@ -45,37 +60,55 @@ void InsertSplits(const NetParameter& param, NetParameter* param_split) {
     for (int j = 0; j < last_loss; ++j) {
       const string& blob_name = layer_param.top(j);
       const pair<int, int>& top_idx = blob_name_to_last_top_idx[blob_name];
+      // 保存损失权重
       top_idx_to_loss_weight[top_idx] = layer_param.loss_weight(j);
+      // 当损失权重不为零，bottom blob计数加一
       if (top_idx_to_loss_weight[top_idx]) {
         ++top_idx_to_bottom_count[top_idx];
       }
     }
   }
+  // 遍历网络
   for (int i = 0; i < param.layer_size(); ++i) {
     LayerParameter* layer_param = param_split->add_layer();
     layer_param->CopyFrom(param.layer(i));
     // Replace any shared bottom blobs with split layer outputs.
+    // 遍历层输入
     for (int j = 0; j < layer_param->bottom_size(); ++j) {
+      // 获取(上层索引，top blob索引）		
       const pair<int, int>& top_idx =
           bottom_idx_to_source_top_idx[make_pair(i, j)];
+      // 获取 bottom blob计数  
       const int split_count = top_idx_to_bottom_count[top_idx];
+      // bottom blob计数大于1时
       if (split_count > 1) {
+		// 获取上层名称  
         const string& layer_name = layer_idx_to_layer_name[top_idx.first];
+        // 获取bottom blob名称
         const string& blob_name = layer_param->bottom(j);
+        // bottom blob重命名
         layer_param->set_bottom(j, SplitBlobName(layer_name,
             blob_name, top_idx.second, top_idx_to_bottom_split_idx[top_idx]++));
       }
     }
     // Create split layer for any top blobs used by other layer as bottom
     // blobs more than once.
+    // 遍历输出层
     for (int j = 0; j < layer_param->top_size(); ++j) {
+	  // 获取 （层索引，top blob索引
       const pair<int, int>& top_idx = make_pair(i, j);
+      // 获取 bottom blob计数
       const int split_count = top_idx_to_bottom_count[top_idx];
       if (split_count > 1) {
+		// 获取层名称
         const string& layer_name = layer_idx_to_layer_name[i];
+        // 获取top blob名称
         const string& blob_name = layer_param->top(j);
+        
         LayerParameter* split_layer_param = param_split->add_layer();
+        // 获取层损失权重
         const float loss_weight = top_idx_to_loss_weight[top_idx];
+        // 新建Split层，添加top和weight
         ConfigureSplitLayer(layer_name, blob_name, j, split_count,
             loss_weight, split_layer_param);
         if (loss_weight) {
@@ -92,11 +125,15 @@ void ConfigureSplitLayer(const string& layer_name, const string& blob_name,
     LayerParameter* split_layer_param) {
   split_layer_param->Clear();
   split_layer_param->add_bottom(blob_name);
+  // 修改层名称
   split_layer_param->set_name(SplitLayerName(layer_name, blob_name, blob_idx));
+  // 设置层类型
   split_layer_param->set_type("Split");
   for (int k = 0; k < split_count; ++k) {
+    // 添加输出blob  
     split_layer_param->add_top(
         SplitBlobName(layer_name, blob_name, blob_idx, k));
+    // 添加损失权重    
     if (loss_weight) {
       if (k == 0) {
         split_layer_param->add_loss_weight(loss_weight);
