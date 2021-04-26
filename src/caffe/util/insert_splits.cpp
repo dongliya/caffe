@@ -7,8 +7,113 @@
 #include "caffe/common.hpp"
 #include "caffe/util/insert_splits.hpp"
 
+/*
+ * @breif 针对网络中某一层中一个top连接到多个下一层bottom的情况。需要在本层之后添加一个Split层。
+ *        作用就把一个数据输入bottom, 拷贝为多个top，没个top与下一层bottom一一对应
+ * @demo       
+          在lenet网络 TEST阶段, ip2和label分别作为accuracy和loss层的输入
+          layer {
+			  name: "mnist"
+			  type: "Data"
+			  top: "data"
+			  top: "label"
+			  include {
+				phase: TEST
+			  }
+			  transform_param {
+				scale: 0.00390625
+			  }
+			  data_param {
+				source: "examples/mnist/mnist_test_lmdb"
+				batch_size: 100
+				backend: LMDB
+			  }
+			}
+			
+			...
+			
+			layer {
+			  name: "accuracy"
+			  type: "Accuracy"
+			  bottom: "ip2"
+			  bottom: "label"
+			  top: "accuracy"
+			  include {
+				phase: TEST
+			  }
+			}
+			layer {
+			  name: "loss"
+			  type: "SoftmaxWithLoss"
+			  bottom: "ip2"
+			  bottom: "label"
+			  top: "loss"
+			}
+			
+          此时需要分裂为:
+          
+          layer {
+			  name: "mnist"
+			  type: "Data"
+			  top: "data"
+			  top: "label"
+			  include {
+				phase: TEST
+			  }
+			  transform_param {
+				scale: 0.00390625
+			  }
+			  data_param {
+				source: "examples/mnist/mnist_test_lmdb"
+				batch_size: 100
+				backend: LMDB
+			  }
+			}
+			layer {
+			  name: "label_mnist_1_split"
+			  type: "Split"
+			  bottom: "label"
+			  top: "label_mnist_1_split_0"
+			  top: "label_mnist_1_split_1"
+			}
+			
+			...
+			
+			layer {
+			  name: "ip2_ip2_0_split"
+			  type: "Split"
+			  bottom: "ip2"
+			  top: "ip2_ip2_0_split_0"
+			  top: "ip2_ip2_0_split_1"
+			}
+			layer {
+			  name: "accuracy"
+			  type: "Accuracy"
+			  bottom: "ip2_ip2_0_split_0"
+			  bottom: "label_mnist_1_split_0"
+			  top: "accuracy"
+			  include {
+				phase: TEST
+			  }
+			}
+			layer {
+			  name: "loss"
+			  type: "SoftmaxWithLoss"
+			  bottom: "ip2_ip2_0_split_1"
+			  bottom: "label_mnist_1_split_1"
+			  top: "loss"
+			}			
+ *        
+ * 
+ */ 
+
 namespace caffe {
 
+/*
+ * @brief   插入Split层
+ * @param   param       原神经网络
+ *          param_split 分裂后的神经网络
+ */ 
 void InsertSplits(const NetParameter& param, NetParameter* param_split) {
   // Initialize by copying from the input NetParameter.
   param_split->CopyFrom(param);
@@ -120,6 +225,15 @@ void InsertSplits(const NetParameter& param, NetParameter* param_split) {
   }
 }
 
+/*
+ * @brief   创建Split层
+ * @param   layer_name        分裂blob所处的层名
+ *          blob_name         要分裂的blob名
+ *          blob_idx          blob索引
+ *          split_count       分裂索引
+ *          loss_weight       损失函数权重
+ *          split_layer_param Split层参数指针
+ */
 void ConfigureSplitLayer(const string& layer_name, const string& blob_name,
     const int blob_idx, const int split_count, const float loss_weight,
     LayerParameter* split_layer_param) {

@@ -62,6 +62,12 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   NetParameter param;
   // 将一个输出blob对应多个输入的情况，加入分裂层
   InsertSplits(filtered_param, &param);
+  
+  // 打印filter后的网络
+  //LOG_IF(INFO, Caffe::root_solver())
+  //    << "Initializing net from parameters: " << std::endl
+  //    << param.DebugString();
+  
   // Basically, build all the layers and set up their connections.
   name_ = param.name();
   map<string, int> blob_name_to_idx;
