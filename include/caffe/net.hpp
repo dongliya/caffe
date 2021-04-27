@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -299,6 +300,10 @@ class Net {
   void BackwardDebugInfo(const int layer_id);
   /// @brief Helper for displaying debug info in Update.
   void UpdateDebugInfo(const int param_id);
+  
+  /// @brief do a dry run to decide blob dependency
+  // 显存优化函数
+  void MemoryOptimize_v2(); 
 
   /// @brief The network name
   // Net名称
@@ -376,6 +381,13 @@ class Net {
   vector<Callback*> after_forward_;
   vector<Callback*> before_backward_;
   vector<Callback*> after_backward_;
+  
+  /// Memory optimization related stuff.
+  /// 显存优化所需的参数
+  bool optimize_memory_;
+  vector< shared_ptr<SyncedMemory> > shared_storage_;
+  std::set<string> excluded_blob_names_;
+
 
 DISABLE_COPY_AND_ASSIGN(Net);
 };

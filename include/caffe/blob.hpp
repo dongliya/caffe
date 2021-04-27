@@ -277,6 +277,10 @@ class Blob {
   void ShareDiff(const Blob& other);
 
   bool ShapeEquals(const BlobProto& other);
+  //梯度赋值
+  void SetDiffStorage(shared_ptr<SyncedMemory>& storage);
+  //数据赋值
+  void SetDataStorage(shared_ptr<SyncedMemory>& storage);
 
  protected:
   shared_ptr<SyncedMemory> data_;         //前向传播数据

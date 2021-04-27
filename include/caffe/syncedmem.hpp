@@ -72,7 +72,8 @@ class SyncedMemory {
   enum SyncedHead { UNINITIALIZED, HEAD_AT_CPU, HEAD_AT_GPU, SYNCED };
   SyncedHead head() const { return head_; }
   size_t size() const { return size_; }
-
+  // 重新设置存储大小
+  void Resize(size_t new_size);
 #ifndef CPU_ONLY
   void async_gpu_push(const cudaStream_t& stream);
 #endif

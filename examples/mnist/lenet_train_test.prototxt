@@ -1,4 +1,9 @@
 name: "LeNet"
+mem_param{
+  optimize_train: true
+  optimize_test: true
+  #exclude_blob: "fc5"
+}
 layer {
   name: "mnist"
   type: "Data"
