@@ -198,7 +198,8 @@ function(detect_cuDNN)
     set(HAVE_CUDNN  TRUE PARENT_SCOPE)
     set(CUDNN_FOUND TRUE PARENT_SCOPE)
 
-    file(READ ${CUDNN_INCLUDE}/cudnn.h CUDNN_VERSION_FILE_CONTENTS)
+    file(READ ${CUDNN_INCLUDE}/cudnn_version.h CUDNN_VERSION_FILE_CONTENTS)
+
 
     # cuDNN v3 and beyond
     string(REGEX MATCH "define CUDNN_MAJOR * +([0-9]+)"
@@ -215,7 +216,8 @@ function(detect_cuDNN)
            CUDNN_VERSION_PATCH "${CUDNN_VERSION_PATCH}")
 
     if(NOT CUDNN_VERSION_MAJOR)
-      set(CUDNN_VERSION "???")
+	    #set(CUDNN_VERSION "???")
+      set(CUDNN_VERSION "${CUDNN_VERSION_MAJOR}.${CUDNN_VERSION_MINOR}.${CUDNN_VERSION_PATCH}")
     else()
       set(CUDNN_VERSION "${CUDNN_VERSION_MAJOR}.${CUDNN_VERSION_MINOR}.${CUDNN_VERSION_PATCH}")
     endif()
